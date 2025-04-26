@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: rabbitmq-consumer
-          image: some-registry/rabbitmq-client:latest
+          image: 146917/keda-rabbitmq-example:latest
           imagePullPolicy: Always
           command:
             - receive

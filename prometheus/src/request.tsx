@@ -304,6 +304,7 @@ export async function fetchMetrics(data: {
   }
   if (data.step) {
     params.append('step', data.step.toString());
+    // params.append('step', '2');
   }
   if (data.query) {
     params.append('query', data.query);

@@ -7,7 +7,7 @@ spec:
     spec:
       containers:
         - name: rabbitmq-client
-          image: some-registry/rabbitmq-client:latest
+          image: 146917/keda-rabbitmq-example:latest
           imagePullPolicy: Always
           env:
             - name: RABBITMQ_CONNECTION
