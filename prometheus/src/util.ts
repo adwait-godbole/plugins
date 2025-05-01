@@ -9,12 +9,14 @@ export const PLUGIN_NAME = 'prometheus';
  * @property {boolean} isMetricsEnabled - Whether metrics are enabled for the cluster.
  * @property {string} address - The address of the Prometheus service.
  * @property {string} defaultTimespan - The default timespan for metrics.
+ * @property {string} defaultGraphResolution - The default graph resolution for metrics.
  */
 type ClusterData = {
   autoDetect?: boolean;
   isMetricsEnabled?: boolean;
   address?: string;
   defaultTimespan?: string;
+  defaultGraphResolution?: string;
 };
 
 /**
@@ -126,6 +128,16 @@ export function getPrometheusInterval(cluster: string): string {
   return clusterData?.defaultTimespan ?? '24h';
 }
 
+/**
+ * getPrometheusGraphResolution returns the default graph resolution for the Prometheus metrics.
+ * @param {string} cluster - The name of the cluster.
+ * @returns {string} The default graph resolution for the Prometheus metrics.
+ */
+export function getPrometheusGraphResolution(cluster: string): string {
+  const clusterData = getClusterConfig(cluster);
+  return clusterData?.defaultGraphResolution ?? 'medium';
+}
+
 export const ChartEnabledKinds = [
   'Pod',
   'Deployment',
@@ -229,42 +241,79 @@ export function formatBytes(bytes: number) {
 /**
  * Calculates the time range based on the given interval.
  * @param {string} interval - The time interval (e.g., '10m', '1h', '24h', 'week').
- * @returns {Object} An object containing the 'from' timestamp, 'to' timestamp, and 'step' in seconds.
+ * @returns {Object} An object containing the 'from' timestamp and 'to' timestamp in seconds.
  */
-export function getTimeRange(interval: string): { from: number; to: number; step: number } {
+export function getTimeRange(interval: string): { from: number; to: number } {
   const now = Math.floor(Date.now() / 1000);
   const day = 86400; // seconds in a day
 
   switch (interval) {
     case '10m':
-      return { from: now - 600, to: now, step: 15 }; // 15 seconds step
+      return { from: now - 600, to: now };
     case '30m':
-      return { from: now - 1800, to: now, step: 30 }; // 30 seconds step
+      return { from: now - 1800, to: now };
     case '1h':
-      return { from: now - 3600, to: now, step: 60 }; // 1 minute step
+      return { from: now - 3600, to: now };
     case '3h':
-      return { from: now - 10800, to: now, step: 180 }; // 3 minutes step
+      return { from: now - 10800, to: now };
     case '6h':
-      return { from: now - 21600, to: now, step: 360 }; // 6 minutes step
+      return { from: now - 21600, to: now };
     case '12h':
-      return { from: now - 43200, to: now, step: 720 }; // 12 minutes step
+      return { from: now - 43200, to: now };
     case '24h':
-      return { from: now - day, to: now, step: 300 }; // 5 minutes step
+      return { from: now - day, to: now };
     case '48h':
-      return { from: now - 2 * day, to: now, step: 600 }; // 10 minutes step
+      return { from: now - 2 * day, to: now };
     case 'today':
-      return { from: now - (now % day), to: now, step: 300 }; // 5 minutes step
+      return { from: now - (now % day), to: now };
     case 'yesterday':
-      return { from: now - (now % day) - day, to: now - (now % day), step: 300 }; // 5 minutes step
+      return { from: now - (now % day) - day, to: now - (now % day) };
     case 'week':
-      return { from: now - 7 * day, to: now, step: 3600 }; // 1 hour step
+      return { from: now - 7 * day, to: now };
     case 'lastweek':
-      return { from: now - 14 * day, to: now - 7 * day, step: 3600 }; // 1 hour step
+      return { from: now - 14 * day, to: now - 7 * day };
     case '7d':
-      return { from: now - 7 * day, to: now, step: 3600 }; // 1 hour step
+      return { from: now - 7 * day, to: now };
     case '14d':
-      return { from: now - 14 * day, to: now, step: 7200 }; // 2 hours step
+      return { from: now - 14 * day, to: now };
     default:
-      return { from: now - 600, to: now, step: 15 }; // Default to 10 minutes with 15 seconds step
+      return { from: now - 600, to: now }; // Default to 10 minutes
   }
+}
+
+/**
+ * Calculates the step size based on a given graph resolution level and time range.
+ * @param {string} graphResolution - The resolution level or fixed interval
+ *        (e.g., 'low', 'medium', 'high', '10s', '1m', '1h').
+ * @param {number} range - The total time range in milliseconds over which
+ *        the graph is to be plotted.
+ * @returns {number} The calculated step size in milliseconds.
+ */
+export function getStepSize(graphResolution: string, range: number) {
+  const graphResolutionFactors: Record<string, number> = {
+    low: 100,
+    medium: 250,
+    high: 750,
+  };
+
+  if (graphResolution in graphResolutionFactors) {
+    const factor = graphResolutionFactors[graphResolution];
+    return Math.max(Math.floor(range / factor / 1000) * 1000, 1000);
+  }
+
+  const fixedSteps: Record<string, number> = {
+    '10s': 10000,
+    '30s': 30000,
+    '1m': 60000,
+    '5m': 300000,
+    '15m': 900000,
+    '1h': 3600000,
+  };
+
+  if (graphResolution in fixedSteps) {
+    return fixedSteps[graphResolution];
+  }
+
+  const fallbackFactor = graphResolutionFactors.medium; // Default to medium graph resolution
+  return Math.max(Math.floor(range / fallbackFactor / 1000) * 1000, 1000);
 }

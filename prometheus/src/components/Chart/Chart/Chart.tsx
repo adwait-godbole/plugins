@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { getTimeRange } from '../../../util';
+import { getStepSize, getTimeRange } from '../../../util';
 
 /**
  * Props for the Chart component.
@@ -40,6 +40,7 @@ export interface ChartProps {
   }>;
   fetchMetrics: (query: object) => Promise<any>;
   interval: string;
+  graphResolution: string;
   prometheusPrefix: string;
   autoRefresh: boolean;
   xAxisProps: {
@@ -69,7 +70,9 @@ export default function Chart(props: ChartProps) {
     plots: Array<{ query: string; name: string; dataProcessor: (data: any) => any }>,
     firstLoad: boolean = false
   ) => {
-    const { from, to, step } = getTimeRange(props.interval);
+    const { from, to } = getTimeRange(props.interval);
+    const rangeMs = (to - from) * 1000;
+    const step = getStepSize(props.graphResolution, rangeMs) / 1000;
 
     const fetchedMetrics: {
       [key: string]: {
